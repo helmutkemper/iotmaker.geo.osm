@@ -15,19 +15,11 @@ import (
 	"math"
 	"os"
 	"strconv"
-	"time"
 )
 
 type WayStt struct {
-	IdMongo       bson.ObjectId     `bson:"_id,omitempty"`
-	IdParser      bson.ObjectId     `bson:"idParser,omitempty"`
 	Id            int64             `bson:"id"`
-	Version       int64             `bson:"version"`
-	TimeStamp     time.Time         `bson:"timeStamp"`
 	Visible       bool              `bson:"visible"`
-	ChangeSet     int64             `bson:"changeSet"`
-	UId           int64             `bson:"userId"`
-	User          string            `bson:"-"`
 	Tag           map[string]string `bson:"tag"`
 	International map[string]string `bson:"international"`
 	Loc           [][2]float64      `bson:"loc"`
@@ -37,21 +29,11 @@ type WayStt struct {
 	Distance      []DistanceStt     `bson:"distance"`
 	DistanceTotal DistanceStt       `bson:"distanceTotal"`
 	Angle         []AngleStt        `bson:"angle"`
-	Unit          string            `bson:"unit"`
-	PreserveUnit  string            `bson:"preserveUnit"`
-	Role          string            `bson:"role"`
-	Data          map[string]string `bson:"data"`
-	IdPoint       []int64           `bson:"idPoint"`
-	IdPolygon     []int64           `bson:"idPolygon"`
-	IdRelation    []int64           `bson:"idRelation"`
-	IdWay         []int64           `bson:"idWay"`
+
+	Data map[string]string `bson:"data"`
 	// en: boundary box in degrees
 	// pt: caixa de perímetro em graus decimais
-	BBox BoxStt `bson:"bbox"`
-	// en: boundary box in BSon to MongoDB
-	// pt: caixa de perímetro em BSon para o MongoDB
-	BBoxBSon       bson.M `bson:"bboxBSon"`
-	GeoJSon        string `bson:"geoJSon,omitempty"`
+	BBox           BoxStt `bson:"bbox"`
 	GeoJSonFeature string `bson:"geoJSonFeature"`
 
 	SurroundingPreset []float64 `bson:"SurroundingPreset" json:"-"`
@@ -60,10 +42,6 @@ type WayStt struct {
 	Size int      `bson:"size" json:"-"`
 
 	HasKeyValue bool `bson:"hasKeyValue" json:"-"`
-
-	Changeset int64 `bson:"changeset" json:"-"`
-
-	deleted bool `bson:"-"`
 }
 
 func (el *WayStt) GetIdAsByte() []byte {
@@ -139,7 +117,9 @@ func (el *WayStt) FromBSon(byteBSon []byte) error {
 }
 
 //fixme código estranho no ângulo
-func (el *WayStt) Init() {
+func (el *WayStt) Init() error {
+	var err error
+
 	var longitudeMaxLFlt float64
 	var longitudeMinLFlt float64
 	var latitudeMaxLFlt float64
@@ -152,11 +132,11 @@ func (el *WayStt) Init() {
 
 	var pointA = PointStt{}
 	var pointB = PointStt{}
-	var distanceList = []DistanceStt{}
+	var distanceList = make([]DistanceStt, 0)
 	var distance = DistanceStt{}
 	distance.SetMeters(0.0)
 
-	var angleList = []AngleStt{}
+	var angleList = make([]AngleStt, 0)
 	var angle = AngleStt{}
 	angle.SetDegrees(0.0)
 
@@ -167,8 +147,15 @@ func (el *WayStt) Init() {
 
 	for keyRefLInt64 := range el.Rad {
 		if keyRefLInt64 != 0 {
-			pointA.SetLngLatRadians(el.Rad[keyRefLInt64-1][0], el.Rad[keyRefLInt64-1][1])
-			pointB.SetLngLatRadians(el.Rad[keyRefLInt64][0], el.Rad[keyRefLInt64][1])
+			err = pointA.SetLngLatRadians(el.Rad[keyRefLInt64-1][0], el.Rad[keyRefLInt64-1][1])
+			if err != nil {
+				return err
+			}
+
+			err = pointB.SetLngLatRadians(el.Rad[keyRefLInt64][0], el.Rad[keyRefLInt64][1])
+			if err != nil {
+				return err
+			}
 
 			angleList[keyRefLInt64-1] = DirectionBetweenTwoPoints(pointA, pointB)
 
@@ -196,7 +183,8 @@ func (el *WayStt) Init() {
 	el.DistanceTotal = distance
 	el.Angle = angleList
 	el.BBox = GetBoxFlt(&el.Loc)
-	el.BBoxBSon = GetBSonBoxInDegreesFlt(&el.Loc)
+
+	return nil
 }
 
 func (el *WayStt) IsPolygon() bool {
@@ -220,8 +208,6 @@ func (el *WayStt) AddLatLngDegreesAtStart(latitudeAFlt, longitudeAFlt float64) e
 
 	el.Loc = append([][2]float64{{longitudeAFlt, latitudeAFlt}}, el.Loc...)
 	el.Rad = append([][2]float64{{DegreesToRadians(longitudeAFlt), DegreesToRadians(latitudeAFlt)}}, el.Rad...)
-	el.Unit = consts.DEGREES
-	el.PreserveUnit = consts.DEGREES
 
 	return el.checkBounds()
 }
@@ -234,8 +220,6 @@ func (el *WayStt) AddLngLatDegreesAtStart(longitudeAFlt, latitudeAFlt float64) e
 
 	el.Loc = append([][2]float64{{longitudeAFlt, latitudeAFlt}}, el.Loc...)
 	el.Rad = append([][2]float64{{DegreesToRadians(longitudeAFlt), DegreesToRadians(latitudeAFlt)}}, el.Rad...)
-	el.Unit = consts.DEGREES
-	el.PreserveUnit = consts.DEGREES
 
 	return el.checkBounds()
 }
@@ -248,8 +232,6 @@ func (el *WayStt) AddLatLngDegrees(latitudeAFlt, longitudeAFlt float64) error {
 
 	el.Loc = append(el.Loc, [2]float64{longitudeAFlt, latitudeAFlt})
 	el.Rad = append(el.Rad, [2]float64{DegreesToRadians(longitudeAFlt), DegreesToRadians(latitudeAFlt)})
-	el.Unit = consts.DEGREES
-	el.PreserveUnit = consts.DEGREES
 
 	return el.checkBounds()
 }
@@ -262,8 +244,6 @@ func (el *WayStt) AddLngLatDegrees(longitudeAFlt, latitudeAFlt float64) error {
 
 	el.Loc = append(el.Loc, [2]float64{longitudeAFlt, latitudeAFlt})
 	el.Rad = append(el.Rad, [2]float64{DegreesToRadians(longitudeAFlt), DegreesToRadians(latitudeAFlt)})
-	el.Unit = consts.DEGREES
-	el.PreserveUnit = consts.DEGREES
 
 	return el.checkBounds()
 }
@@ -276,8 +256,6 @@ func (el *WayStt) AddXYDegrees(xAFlt, yAFlt float64) error {
 
 	el.Loc = append(el.Loc, [2]float64{xAFlt, yAFlt})
 	el.Rad = append(el.Rad, [2]float64{DegreesToRadians(xAFlt), DegreesToRadians(yAFlt)})
-	el.Unit = consts.DEGREES
-	el.PreserveUnit = consts.DEGREES
 
 	return el.checkBounds()
 }
@@ -290,8 +268,6 @@ func (el *WayStt) AddLatLngRadians(latitudeAFlt, longitudeAFlt float64) error {
 
 	el.Loc = append(el.Loc, [2]float64{RadiansToDegrees(longitudeAFlt), RadiansToDegrees(latitudeAFlt)})
 	el.Rad = append(el.Rad, [2]float64{longitudeAFlt, latitudeAFlt})
-	el.Unit = consts.RADIANS
-	el.PreserveUnit = consts.RADIANS
 
 	return el.checkBounds()
 }
@@ -304,8 +280,6 @@ func (el *WayStt) AddLngLatRadians(longitudeAFlt, latitudeAFlt float64) error {
 
 	el.Loc = append(el.Loc, [2]float64{RadiansToDegrees(longitudeAFlt), RadiansToDegrees(latitudeAFlt)})
 	el.Rad = append(el.Rad, [2]float64{longitudeAFlt, latitudeAFlt})
-	el.Unit = consts.RADIANS
-	el.PreserveUnit = consts.RADIANS
 
 	return el.checkBounds()
 }
@@ -318,8 +292,6 @@ func (el *WayStt) AddXYRadians(xAFlt, yAFlt float64) error {
 
 	el.Loc = append(el.Loc, [2]float64{RadiansToDegrees(xAFlt), RadiansToDegrees(yAFlt)})
 	el.Rad = append(el.Rad, [2]float64{xAFlt, yAFlt})
-	el.Unit = consts.RADIANS
-	el.PreserveUnit = consts.RADIANS
 
 	return el.checkBounds()
 }
@@ -332,8 +304,6 @@ func (el *WayStt) AddPoint(pointAStt *PointStt) error {
 
 	el.Loc = append([][2]float64{{pointAStt.Loc[0], pointAStt.Loc[1]}}, el.Loc...)
 	el.Rad = append([][2]float64{{pointAStt.Rad[0], pointAStt.Rad[1]}}, el.Rad...)
-	el.Unit = consts.DEGREES
-	el.PreserveUnit = consts.DEGREES
 
 	return el.checkBounds()
 }
@@ -354,7 +324,6 @@ func (el *WayStt) AddTag(keyAStr, valueAStr string) {
 }
 
 func (el *WayStt) checkBounds() error {
-	return nil
 	if el.Rad[len(el.Rad)-1][1] < consts.MIN_LAT || el.Rad[len(el.Rad)-1][1] > consts.MAX_LAT {
 		return fmt.Errorf("Error: Latitude must be < [math.Pi/2 rad|+90º] and > [-math.Pi/2 rad|-90º]. Value (%1.5f,%1.5f)%v\n", el.Rad[len(el.Rad)-1][0], el.Rad[len(el.Rad)-1][1], consts.RADIANS)
 	}
@@ -365,26 +334,7 @@ func (el *WayStt) checkBounds() error {
 	return nil
 }
 
-func (el *WayStt) MakeGeoJSon() string {
-	// fixme: fazer
-	//if el.Id == 0 {
-	//	el.Id = util.AutoId.Get(el.DbCollectionName)
-	//}
-
-	var geoJSon GeoJSon = GeoJSon{}
-	geoJSon.Init()
-	geoJSon.AddGeoMathWay(strconv.FormatInt(el.Id, 10), el)
-	el.GeoJSon, _ = geoJSon.String()
-
-	return el.GeoJSon
-}
-
 func (el *WayStt) MakeGeoJSonFeature() string {
-	// fixme: fazer
-	//if el.Id == 0 {
-	//	el.Id = util.AutoId.Get(el.DbCollectionName)
-	//}
-
 	var geoJSon GeoJSon = GeoJSon{}
 	geoJSon.Init()
 	geoJSon.AddGeoMathWay(strconv.FormatInt(el.Id, 10), el)
@@ -463,7 +413,7 @@ func (el *WayStt) MakePolygonSurroundings(distanceAStt, minimalDistanceAStt Dist
 
 func (el *WayStt) MakePolygonSurroundingsRight(distanceAStt, minimalDistanceAStt DistanceStt) (error, PolygonStt) {
 	if len(el.Loc) < 3 {
-		return errors.New("The way must have a minimum of three points"), PolygonStt{}
+		return errors.New("the way must have a minimum of three points"), PolygonStt{}
 	}
 
 	el.Init()

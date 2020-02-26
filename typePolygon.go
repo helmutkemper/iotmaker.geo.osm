@@ -14,7 +14,6 @@ import (
 	"math"
 	"os"
 	"strconv"
-	"time"
 )
 
 /*
@@ -47,32 +46,7 @@ type PolygonStt struct {
 
 	Surrounding float64 `bson:"surrounding"`
 
-	// English: version within the OpenStreetMaps
-	//
-	// Português: versão dentro do OpenStreetMaps
-	Version int64 `bson:"version"`
-
-	// English: Time Stamp within the OpenStreetMaps
-	//
-	// Português: TimeStamp dentro do OpenStreetMaps
-	TimeStamp time.Time `bson:"timeStamp"`
-
-	// English: Change Set within the OpenStreetMaps
-	//
-	// Português: ChangeSet dentro do OpenStreetMaps
-	ChangeSet int64 `bson:"changeSet"`
-
 	Visible bool `bson:"bool"`
-
-	// English: User Id within the OpenStreetMaps
-	//
-	// Português: User Id dentro do Open Street Maps
-	UId int64 `bson:"userId"`
-
-	// English: User Name within the OpenStreetMaps
-	//
-	// Português: User Name dentro do OpenStreetMaps
-	User string `bson:"-"`
 
 	// English: Tags OpenStreetMaps
 	//
@@ -98,11 +72,6 @@ type PolygonStt struct {
 	//
 	// Português: dados do usuário
 	Data map[string]string `bson:"data"`
-
-	// English: Role OpenStreetMaps
-	//
-	// Português: Role Open Street Maps
-	Role string `bson:"role"`
 
 	// English: List of polygon forming points
 	//
@@ -170,13 +139,13 @@ type PolygonStt struct {
 	/*
 	   bson.M{ "bBoxSearch.1.0": bson.M{ "$gte": -62.162704467 }, "bBoxSearch.1.1": bson.M{ "$lte": -12.341343394 }, "bBoxSearch.0.0": bson.M{ "$lte": -62.162704467 }, "bBoxSearch.0.1": bson.M{ "$gte": -12.341343394 } }
 	*/
-	BBoxSearch [2][2]float64 `bson:"bBoxSearch"`
+	//BBoxSearch [2][2]float64 `bson:"bBoxSearch"`
 
 	// English: boundary box in BSon to MongoDB
 	//
 	// Português: caixa de perímetro em BSon para o MongoDB
-	BBoxBSon       bson.M   `bson:"bBoxBSon"`
-	GeoJSon        string   `bson:"geoJSon,omitempty"`
+	//BBoxBSon       bson.M   `bson:"bBoxBSon"`
+
 	GeoJSonFeature string   `bson:"geoJSonFeature"`
 	tmp            []WayStt `bson:"-" json:"-"`
 
@@ -258,12 +227,7 @@ func (el *PolygonStt) SetSurrounding(distance float64) {
 //
 // @see dataOfOsm in blog.osm.io
 func (el *PolygonStt) AddRelationDataAsPolygonData(relation *RelationStt) {
-	el.Version = (*relation).Version
-	el.TimeStamp = (*relation).TimeStamp
 	el.Visible = (*relation).Visible
-	el.ChangeSet = (*relation).ChangeSet
-	el.UId = (*relation).UId
-	el.User = (*relation).User
 
 	el.Tag = (*relation).Tag
 	el.International = (*relation).International
@@ -294,18 +258,12 @@ func (el *PolygonStt) AddWayDataAsPolygonData(way *WayStt) {
 	}
 
 	//el.Id             =  (*way).Id
-	el.Version = (*way).Version
-	el.TimeStamp = (*way).TimeStamp
-	el.ChangeSet = (*way).ChangeSet
-	el.UId = (*way).UId
-	el.User = (*way).User
 
 	//mapTagLock.Lock()
 	//el.Tag            =  (*way).Tag
 	//mapTagLock.Unlock()
 
 	el.International = (*way).International
-	el.Role = (*way).Role
 
 	el.Data = (*way).Data
 }
@@ -335,18 +293,12 @@ func (el *PolygonStt) AddWayAsPolygon(way *WayStt) {
 	}
 
 	//el.Id             =  (*way).Id
-	el.Version = (*way).Version
-	el.TimeStamp = (*way).TimeStamp
-	el.ChangeSet = (*way).ChangeSet
-	el.UId = (*way).UId
-	el.User = (*way).User
 
 	//mapTagLock.Lock()
 	//el.Tag            =  (*way).Tag
 	//mapTagLock.Unlock()
 
 	el.International = (*way).International
-	el.Role = (*way).Role
 	el.Data = (*way).Data
 
 	for _, loc := range way.Loc {
@@ -389,7 +341,6 @@ func (el *PolygonStt) AddWayAsPreProcessingPolygon(way *WayStt) {
 		el.tmp = make([]WayStt, 0)
 	}
 
-	way.deleted = false
 	el.tmp = append(el.tmp, *way)
 }
 
@@ -558,9 +509,6 @@ func (el *PolygonStt) Init() error {
 			yEnd = el.PointsList[lengthStart].Loc[1]
 
 			for k1 = 1; k1 != len(el.tmp); k1 += 1 {
-				if el.tmp[k1].deleted == true {
-					continue
-				}
 
 				lengthTmp = len(el.tmp[k1].Loc) - 1
 
@@ -613,8 +561,6 @@ func (el *PolygonStt) Init() error {
 					el.AddLngLatDegrees(el.tmp[distanceKey].Loc[i][0], el.tmp[distanceKey].Loc[i][1])
 				}
 			}
-
-			el.tmp[distanceKey].deleted = true
 
 			if pass == true {
 				log.Critical("")
@@ -696,8 +642,8 @@ func (el *PolygonStt) Init() error {
 	el.DistanceTotal = distanceLStt
 	el.Angle = angleList
 	el.BBox = GetBox(&el.PointsList)
-	el.BBoxBSon = GetBSonBoxInDegrees(&el.PointsList)
-	el.BBoxSearch = [2][2]float64{el.BBox.UpperRight.Loc, el.BBox.BottomLeft.Loc}
+	//el.BBoxBSon = GetBSonBoxInDegrees(&el.PointsList)
+	//el.BBoxSearch = [2][2]float64{el.BBox.UpperRight.Loc, el.BBox.BottomLeft.Loc}
 
 	return nil
 }
@@ -818,24 +764,7 @@ func (el *PolygonStt) GetBox() BoxStt { return el.BBox }
 // Caso o ponto não esteja na caixa, ele não está dentro do polígono.
 //
 // A resposta será em graus decimais.
-func (el *PolygonStt) GetBSonBoxInDegrees() bson.M { return el.BBoxBSon }
-
-// English: Mounts the geoJSon from polygon and populates the key GeoJSon into the struct
-//
-// Português: Monta o geoJSon do polígono e popula a chave GeoJSon na struct
-func (el *PolygonStt) MakeGeoJSon() string {
-	// fixme: fazer
-	//if el.Id == 0 {
-	//	el.Id = util.AutoId.Get(el.DbCollectionName)
-	//}
-
-	var geoJSon GeoJSon = GeoJSon{}
-	geoJSon.Init()
-	geoJSon.AddGeoMathPolygon(strconv.FormatInt(el.Id, 10), el)
-	el.GeoJSon, _ = geoJSon.String()
-
-	return el.GeoJSon
-}
+//func (el *PolygonStt) GetBSonBoxInDegrees() bson.M { return el.BBoxBSon }
 
 // English: Mounts the geoJSon Feature from polygon and populates the key GeoJSonFeature into the struct
 //
@@ -890,7 +819,6 @@ func (el *PolygonStt) Resize(distanceAObj DistanceStt) PolygonStt {
 	}
 
 	newPolygon.Init()
-	newPolygon.MakeGeoJSon()
 
 	return newPolygon
 }

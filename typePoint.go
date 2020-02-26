@@ -16,35 +16,19 @@ import (
 	"math"
 	"os"
 	"strconv"
-	"time"
 )
 
 // point struct based on osm file
 type PointStt struct {
-	// id do MongoDB
-	IdMongo  bson.ObjectId `bson:"_id,omitempty"`
-	IdParser bson.ObjectId `bson:"idParser,omitempty"`
-	// id do open street maps
 	Id int64 `bson:"id"`
 	// Array de localização geográfica.
 	// [0:x:longitude,1:y:latitude]
 	// Este campo deve obrigatoriamente ser um array devido a indexação do MongoDB
 	Loc [2]float64 `bson:"loc"`
 	Rad [2]float64 `bson:"rad"`
-	// Unidade original do ponto. Serve para manter a resposta no formato original.
-	// Versão dentro do Open Street Maps
-	Version int64 `bson:"version"`
 
 	Visible bool `bson:"visible"`
 
-	// TimeStamp dentro do Open Street Maps
-	TimeStamp time.Time `bson:"timeStamp"`
-	// ChangeSet dentro do Open Street Maps
-	ChangeSet int64 `bson:"changeSet"`
-	// User Id dentro do Open Street Maps
-	UId int64 `bson:"userId"`
-	// User Name dentro do Open Street Maps
-	User string `bson:"-"`
 	// Tags do Open Street Maps
 	// As Tags contêm _todo tipo de informação, desde como elas foram importadas, ao nome de um estabelecimento comercial,
 	// por exemplo.
@@ -54,9 +38,8 @@ type PointStt struct {
 	// Como o GO é fortemente tipado, eu obtive problemas em estender o struct de forma satisfatória e permitir ao usuário
 	// do sistema gravar seus próprios dados, por isto, este campo foi criado. Use-o a vontade.
 	Data map[string]string `bson:"data"`
-	Role string            `bson:"role"`
+
 	// Node usado apenas para o parser do arquivo
-	GeoJSon        string `bson:"geoJSon,omitempty"`
 	GeoJSonFeature string `bson:"geoJSonFeature"`
 
 	Md5  [16]byte `bson:"md5" json:"-"`
@@ -74,19 +57,11 @@ func (el *PointStt) AsArray() []PointStt {
 }
 
 func (el *PointStt) CopyFrom(pointABStt PointStt) {
-	el.IdMongo = pointABStt.IdMongo
-	el.IdParser = pointABStt.IdParser
 	el.Id = pointABStt.Id
 	el.Loc = pointABStt.Loc
 	el.Rad = pointABStt.Rad
-	el.Version = pointABStt.Version
-	el.TimeStamp = pointABStt.TimeStamp
-	el.ChangeSet = pointABStt.ChangeSet
-	el.UId = pointABStt.UId
-	el.User = pointABStt.User
 	el.Tag = pointABStt.Tag
 	el.Data = pointABStt.Data
-	el.Role = pointABStt.Role
 	el.Md5 = pointABStt.Md5
 	el.Size = pointABStt.Size
 }
@@ -148,22 +123,7 @@ func (el *PointStt) CheckMD5() error {
 	return nil
 }
 
-func (el *PointStt) MakeGeoJSon() string {
-	var geoJSon GeoJSon = GeoJSon{}
-	geoJSon.Init()
-	geoJSon.AddGeoMathPoint(strconv.FormatInt(el.Id, 10), el)
-	el.GeoJSon, _ = geoJSon.String()
-
-	return el.GeoJSon
-}
-
 func (el *PointStt) MakeGeoJSonFeature() string {
-
-	// todo: fazer
-	//if el.Id == 0 {
-	//  el.Id = util.AutoId.Get(el.DbCollectionName)
-	//}
-
 	var geoJSon GeoJSon = GeoJSon{}
 	geoJSon.Init()
 	geoJSon.AddGeoMathPoint(strconv.FormatInt(el.Id, 10), el)
@@ -307,9 +267,6 @@ func (el *PointStt) ToLeafletMapString() string {
 func (el PointStt) GetLatitudeAsDegrees() float64 { return el.Loc[1] }
 
 func (el PointStt) GetLatitudeAsRadians() float64 { return el.Rad[1] }
-
-// Return _id from db
-func (el PointStt) GetId() bson.ObjectId { return el.IdMongo }
 
 // Return x coordinate as longitude
 func (el PointStt) GetLongitudeAsDegrees() float64 { return el.Loc[0] }
