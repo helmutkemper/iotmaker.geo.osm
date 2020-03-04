@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"github.com/helmutkemper/gOsm/consts"
 	"github.com/helmutkemper/mgo/bson"
-	log "github.com/helmutkemper/seelog"
 	"github.com/helmutkemper/zstd"
 	"io"
 	"io/ioutil"
@@ -59,7 +58,6 @@ func (el *WayStt) MakeMD5() (error, []byte) {
 	el.Md5 = [16]byte{}
 	byteBSon, err = bson.Marshal(el)
 	if err != nil {
-		log.Criticalf("gOsm.geoMath.tmpPoint.error: %s", err.Error())
 		return err, []byte{}
 	}
 
@@ -68,7 +66,6 @@ func (el *WayStt) MakeMD5() (error, []byte) {
 
 	byteBSon, err = bson.Marshal(el)
 	if err != nil {
-		log.Criticalf("gOsm.geoMath.tmpPoint.error: %s", err.Error())
 		return err, []byte{}
 	}
 
@@ -85,7 +82,6 @@ func (el *WayStt) CheckMD5() error {
 
 	byteBSon, err = bson.Marshal(el)
 	if err != nil {
-		log.Criticalf("gOsm.geoMath.tmpPoint.error: %s", err.Error())
 		return err
 	}
 
@@ -109,10 +105,6 @@ func (el *WayStt) FromBSon(byteBSon []byte) error {
 	var err error
 
 	err = bson.Unmarshal(byteBSon, el)
-	if err != nil {
-		log.Criticalf("gOsm.geoMath.geoTypePolygon.error: %s", err)
-	}
-
 	return err
 }
 
@@ -526,13 +518,13 @@ func (el *WayStt) ToJSon() ([]byte, error) {
 	return bson.MarshalJSON(el)
 }
 
-func (el *WayStt) ToReader() io.Reader {
+func (el *WayStt) ToReader() (error, io.Reader) {
 	err, data := el.ToBSon()
 	if err != nil {
-		log.Criticalf("gOsm.geoMath.geoTypePolygon.error: %s", err.Error())
+		return err, nil
 	}
 
-	return bytes.NewReader(data)
+	return nil, bytes.NewReader(data)
 }
 
 func (el *WayStt) FromJSon(in []byte) error {
@@ -540,9 +532,13 @@ func (el *WayStt) FromJSon(in []byte) error {
 }
 
 func (el *WayStt) ToFile(file io.Writer) error {
-	_, err := io.Copy(file, el.ToReader())
+	err, reader := el.ToReader()
 	if err != nil {
-		log.Criticalf("gOsm.geoMath.geoTypePolygon.error: %s", err.Error())
+		return err
+	}
+
+	_, err = io.Copy(file, reader)
+	if err != nil {
 		return err
 	}
 
@@ -555,13 +551,11 @@ func (el *WayStt) FromFile(file io.Reader) error {
 
 	_, err := io.Copy(bufferLObj, file)
 	if err != nil {
-		log.Criticalf("gOsm.geoMath.geoTypePolygon.error: %s", err.Error())
 		return err
 	}
 
 	err = el.FromBSon(bufferLObj.Bytes())
 	if err != nil {
-		log.Criticalf("gOsm.geoMath.geoTypePolygon.error: %s", err.Error())
 		return err
 	}
 
@@ -575,13 +569,11 @@ func (el *WayStt) ToExternalFile(file *os.File, typeId []byte) error {
 
 	err, byteBSon = el.MakeMD5()
 	if err != nil {
-		log.Criticalf("gOsm.geoMath.geoTypePolygon.error: %s", err)
 		return err
 	}
 
 	byteBSon, err = zstd.CompressLevel(nil, byteBSon, zstd.DefaultCompression)
 	if err != nil {
-		log.Criticalf("gOsm.geoMath.geoTypePolygon.error: %s", err)
 		return err
 	}
 
@@ -589,21 +581,15 @@ func (el *WayStt) ToExternalFile(file *os.File, typeId []byte) error {
 
 	_, err = file.Write(typeId)
 	if err != nil {
-		log.Criticalf("gOsm.geoMath.geoTypePolygon.error: %s", err)
 		return err
 	}
 
 	_, err = file.Write(sizeByte)
 	if err != nil {
-		log.Criticalf("gOsm.geoMath.geoTypePolygon.error: %s", err)
 		return err
 	}
 
 	_, err = file.Write(byteBSon)
-	if err != nil {
-		log.Criticalf("gOsm.geoMath.geoTypePolygon.error: %s", err)
-	}
-
 	return err
 }
 
@@ -613,14 +599,10 @@ func (el *WayStt) ToFilePath(filePath string) error {
 
 	byteBSon, err = bson.Marshal(el)
 	if err != nil {
-		log.Criticalf("gOsm.geoMath.geoTypePolygon.error: %s", err)
+		return err
 	}
 
 	err = ioutil.WriteFile(filePath, byteBSon, 0644)
-	if err != nil {
-		log.Criticalf("gOsm.geoMath.geoTypePolygon.error: %s", err)
-	}
-
 	return err
 }
 
@@ -630,14 +612,10 @@ func (el *WayStt) FromFilePath(filePath string) error {
 
 	byteBSon, err = ioutil.ReadFile(filePath)
 	if err != nil {
-		log.Criticalf("gOsm.geoMath.geoTypePolygon.error: %s", err)
+		return err
 	}
 
 	// Transform bson data into point
 	err = bson.Unmarshal(byteBSon, el)
-	if err != nil {
-		log.Criticalf("gOsm.geoMath.geoTypePolygon.error: %s", err)
-	}
-
 	return err
 }
