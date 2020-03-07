@@ -89,8 +89,8 @@ func GetBoxFlt(list *[][2]float64) BoxStt {
 	}
 
 	boxLStt := BoxStt{}
-	boxLStt.BottomLeft.SetLngLatRadians(lngMin, latMax)
-	boxLStt.UpperRight.SetLngLatRadians(lngMax, latMin)
+	boxLStt.BottomLeft.SetLngLatDegrees(lngMax, latMin)
+	boxLStt.UpperRight.SetLngLatDegrees(lngMin, latMax)
 
 	return boxLStt
 }
